@@ -1,5 +1,6 @@
 # To run serially: nohup python -u field_data_polished_cutaway_movie_script_mime.py > cms.out 2>&1 &
 # To start interactive node: salloc --nodes=1 --ntasks=1 --cpus-per-task=32 --time=1:00:00 --mem=3000G --partition=bigmem -A pppl
+# To clear: scancel -u ar3676 -p bigmem
 
 ## INPUT SETTINGS
 

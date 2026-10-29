@@ -3,7 +3,7 @@
 
 ## INPUT SETTINGS
 
-findex = -7                      # file chosen
+findex = 250 #-7                      # file chosen
 
 skip = 2
 
@@ -18,7 +18,7 @@ ybuffer = 450
 lw = 2.3
 
 main_contours = 5
-lzoom_contours = 4
+lzoom_contours = 2
 rzoom_contours = 4
 
 var_to_plot = {'density': 'ndens', 'hall': 'ex'}[plot_choice]
@@ -30,7 +30,7 @@ ccolor = {"density": "white", "hall": "black"}[plot_choice]
 split = 1 # 1 whole domain, 2 half domain
 
 buffer = 10                     # x buffer in skin depths
-steps = range(0, 221, 1)     # steps to include from 100 to 212
+steps = range(270, 416, 1)     # steps to include from 100 to 212
 
 
 # Imports and Folder Selection
@@ -275,7 +275,7 @@ if __name__ == "__main__":
 
     cs_file = f"{run.path}/crossings_data.npy"
     cs_shift = np.load(cs_file)
-    cs_shift = np.concatenate((cs_shift, np.array([cs_shift[-1]]))) #hack, should not make a big difference
+    cs_shift = np.concatenate((cs_shift, np.array([cs_shift[-1]])))[steps] #hack, should not make a big difference
 
     xpt_shift_loc = f"{run.path}/xpt_data.npy"
     xpt_shift = np.load(xpt_shift_loc)

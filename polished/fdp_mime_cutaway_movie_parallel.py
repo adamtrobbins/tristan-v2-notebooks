@@ -1,6 +1,7 @@
 # To run serially: nohup python -u field_data_polished_cutaway_movie_script_mime.py > cms.out 2>&1 &
 # To start interactive node: salloc --nodes=1 --ntasks=1 --cpus-per-task=32 --time=1:00:00 --mem=3000G --partition=bigmem -A pppl
 # To clear: scancel -u ar3676 -p bigmem
+# perhaps do origin flipped, the bugged version may have worked better
 
 ## INPUT SETTINGS
 
@@ -10,7 +11,7 @@ skip = 2
 
 NUM_WORKERS = 32
 
-plot_choice = "density" # "hall"
+plot_choice = "density_cool" # "hall"
 lazy = 2
 contour_cheat = 2
 counter = 0
@@ -19,14 +20,14 @@ ybuffer = 450
 lw = 2.3
 
 main_contours = 5
-lzoom_contours = 2
+lzoom_contours = 5
 rzoom_contours = 4
 
-var_to_plot = {'density': 'ndens', 'hall': 'ex'}[plot_choice]
-cmap = {"density": "viridis", "hall": "seismic"}[plot_choice]
-positive = {"density": True, "hall": False}[plot_choice]
-vabsmax = {"density": 5.0, "hall": 0.1}[plot_choice]
-ccolor = {"density": "white", "hall": "black"}[plot_choice]
+var_to_plot = {'density': 'ndens', 'hall': 'ex', 'density_cool': 'ndens'}[plot_choice]
+cmap = {"density": "viridis", "hall": "seismic", "density_cool": "inferno"}[plot_choice]
+positive = {"density": True, "hall": False, "density_cool": True}[plot_choice]
+vabsmax = {"density": 5.0, "hall": 0.1, "density_cool": 3.0}[plot_choice]
+ccolor = {"density": "white", "hall": "black", "density_cool": "white"}[plot_choice]
 
 split = 1 # 1 whole domain, 2 half domain
 
@@ -53,6 +54,7 @@ from FieldLineHelperParallel import FieldLineHelperParallel
 
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import ConnectionPatch
+from matplotlib.ticker import FuncFormatter, Locator, MaxNLocator
 
 from scipy.integrate import cumulative_trapezoid
 
@@ -79,6 +81,21 @@ def print_total_time():
 def compute_gauge_integrals(ez_reps):
     return run.cc * run.output_interval * cumulative_trapezoid(ez_reps, initial=0)
 
+class DiLocator(Locator):
+    # Picks round-number tick locations in d_i space, then converts them
+    # back to the raw c/omega_p data coordinates the axes actually use.
+    def __init__(self, comp_to_di, nbins=6):
+        self.comp_to_di = comp_to_di
+        self._base_locator = MaxNLocator(nbins=nbins)
+
+    def tick_values(self, vmin, vmax):
+        di_ticks = self._base_locator.tick_values(vmin * self.comp_to_di, vmax * self.comp_to_di)
+        return di_ticks / self.comp_to_di
+
+    def __call__(self):
+        vmin, vmax = self.axis.get_view_interval()
+        return self.tick_values(vmin, vmax)
+
 def plot_fq3_flipped(roi, quantity, plot, vabsmax=-1, cmap='viridis', downsample=1, positive=False, cbar_label=None):
 
     # Downsample the data and transpose
@@ -93,6 +110,9 @@ def plot_fq3_flipped(roi, quantity, plot, vabsmax=-1, cmap='viridis', downsample
 
     xmin, xmax, ymin, ymax = min(roi_x), max(roi_x), min(roi_y), max(roi_y)
 
+    # Keep the extent (and every other overlay: field lines, rect patches,
+    # ConnectionPatches) in the native c/omega_p data coordinates - only the
+    # displayed tick labels are rescaled to d_i, via the formatter below.
     flipped_extent = [ymin, ymax, xmax, xmin]
 
     if positive:
@@ -102,9 +122,14 @@ def plot_fq3_flipped(roi, quantity, plot, vabsmax=-1, cmap='viridis', downsample
     else:
         mesh = plot.imshow(quantity.T, cmap=cmap, vmax=vabsmax, vmin=-vabsmax, origin='upper', extent=flipped_extent)
 
-    plot.set_xlabel('$y$ [$c/\omega_{p}$]')
-    plot.set_ylabel('$x$ [$c/\omega_{p}$]')
-    
+    plot.set_xlabel('$y$ [$d_i$]')
+    plot.set_ylabel('$x$ [$d_i$]')
+    di_formatter = FuncFormatter(lambda val, pos: f'{val * run.comp_to_di:.0f}')
+    plot.xaxis.set_major_formatter(di_formatter)
+    plot.yaxis.set_major_formatter(di_formatter)
+    plot.xaxis.set_major_locator(DiLocator(run.comp_to_di))
+    plot.yaxis.set_major_locator(DiLocator(run.comp_to_di))
+
     return mesh
 
 def save_nth_frame(frame_num, rel_ts, *,  gauge_integrals, left_x_center, 
@@ -127,7 +152,7 @@ def save_nth_frame(frame_num, rel_ts, *,  gauge_integrals, left_x_center,
     title = f"$\Omega_i t = $ {round(rel_ts * run.gyrofreq / run.mime):05d}"
 
     main_rect = [0 + buffer, run.xlim - buffer, 0 + ybuffer, run.ylim - ybuffer]
-    left_rect = [left_x_center - 200, left_x_center + 200, 1200 - 300, 2000 - 300]
+    left_rect = [left_x_center - 250, left_x_center + 250, 1200 - 300, 2000 - 300]
     right_rect = [right_x_center - 120, right_x_center + 120, right_y_center - 240, right_y_center + 240]
 
     rects = [left_rect, right_rect]
@@ -145,7 +170,7 @@ def save_nth_frame(frame_num, rel_ts, *,  gauge_integrals, left_x_center,
         im = None
 
         if (flh1 is None):
-            flh1 = FieldLineHelperParallel(run, main_contours, contour_ds = contour_cheat)
+            flh1 = FieldLineHelperParallel(run, main_contours, contour_ds = contour_cheat, origin = [0.5, 0.0])
         flh1.plot_field_lines(roi, gauge_integral_main, plot = ax, arrow_spacing = -1, linewidth = 1, transpose = True, color = ccolor) #1000
 
         print(f"Worker {os.getpid()}: Data sliced. Plotting...", flush=True)
@@ -161,10 +186,10 @@ def save_nth_frame(frame_num, rel_ts, *,  gauge_integrals, left_x_center,
 
         if (flh23 is None):
             if flh_index == 0:
-                flh2 = FieldLineHelperParallel(run, lzoom_contours, contour_ds = contour_cheat)
+                flh2 = FieldLineHelperParallel(run, lzoom_contours, contour_ds = contour_cheat, origin = [0.9, 0.9])
                 flh23 = flh2
             else:
-                flh3 = FieldLineHelperParallel(run, rzoom_contours, contour_ds = contour_cheat)  
+                flh3 = FieldLineHelperParallel(run, rzoom_contours, contour_ds = contour_cheat, origin = [0.5, 0.0])  
                 flh23 = flh3
 
         gauge_integral = [gauge_integral_left, gauge_integral_right][flh_index]
@@ -173,8 +198,8 @@ def save_nth_frame(frame_num, rel_ts, *,  gauge_integrals, left_x_center,
 
         # Show axis ticks and labels
         ax.tick_params(axis='both', which='both', direction='in', length=4)
-        ax.set_xlabel("$y$ [$c/\\omega_{p}$]")
-        ax.set_ylabel("$x$ [$c/\\omega_{p}$]")
+        ax.set_xlabel("$y$ [$d_i$]")
+        ax.set_ylabel("$x$ [$d_i$]")
         rect_patch = plt.Rectangle((x1, y1), x2 - x1, y2 - y1, edgecolor=color, facecolor='none', lw=lw)
         return rect_patch, flh23
 
@@ -241,6 +266,10 @@ def render_frame_worker(i, ts, gauge_integral, flhs, lx, rx, ry):
 def render_frame_worker(i, ts, gauge_integrals, flhs, lx, rx, ry):
     print(f"--- Worker started: frame {i} (ts {ts}) ---", flush=True)
     try:
+        # spawned worker processes don't inherit the main process's rcParams
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['font.size'] = 12
+
         # Check if we are stuck BEFORE saving
         print(f"Worker {i}: Calling save_nth_frame...", flush=True)
         

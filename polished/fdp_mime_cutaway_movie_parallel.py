@@ -81,6 +81,15 @@ def print_total_time():
 def compute_gauge_integrals(ez_reps):
     return run.cc * run.output_interval * cumulative_trapezoid(ez_reps, initial=0)
 
+def save_colorbar_png():
+    vmin = 0 if positive else -vabsmax
+    fig, ax = plt.subplots(figsize=(1.4, 6))
+    norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vabsmax)
+    cb = matplotlib.colorbar.ColorbarBase(ax, cmap=plt.get_cmap(cmap), norm=norm)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    fig.savefig(os.path.join(script_dir, "colorbar.png"), bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
 class DiLocator(Locator):
     # Picks round-number tick locations in d_i space, then converts them
     # back to the raw c/omega_p data coordinates the axes actually use.
@@ -298,6 +307,8 @@ if __name__ == "__main__":
     #plt.rcParams['text.usetex'] = True
     plt.rcParams['font.family'] = 'serif'
     plt.rcParams['font.size'] = 12
+
+    save_colorbar_png()
 
     ## READ GAUGE DATA
 

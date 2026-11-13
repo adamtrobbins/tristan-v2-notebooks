@@ -161,7 +161,7 @@ def save_nth_frame(frame_num, rel_ts, *,  gauge_integrals, left_x_center,
     title = f"$\Omega_i t = $ {round(rel_ts * run.gyrofreq / run.mime):05d}"
 
     main_rect = [0 + buffer, run.xlim - buffer, 0 + ybuffer, run.ylim - ybuffer]
-    left_rect = [left_x_center - 250, left_x_center + 250, 1200 - 300, 2000 - 300]
+    left_rect = [left_x_center - 250, left_x_center + 250, 500 + 141, 1300 + 141]
     right_rect = [right_x_center - 120, right_x_center + 120, right_y_center - 240, right_y_center + 240]
 
     rects = [left_rect, right_rect]
@@ -237,7 +237,7 @@ def save_nth_frame(frame_num, rel_ts, *,  gauge_integrals, left_x_center,
     ax_main = fig.add_subplot(gs[0, :]) # problem line
     im, flh1 = plot_main(ax_main, flh1)
 
-    is_custom = [False, True]
+    is_custom = [True, True]
 
     zoom_axes = []
     for i, (rect, color, title) in enumerate(zip(rects, colors, titles)):
